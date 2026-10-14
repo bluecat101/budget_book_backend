@@ -6,15 +6,15 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 class ExpenseService {
   static final String _url = dotenv.env['API_URL'] ?? '';
 
-  static Future<List<ExpenseItem>> fetchExpenses() async {
+  static Future<List<ExpenseItem>> fetchExpenses(String userName) async {
     try {
-      final response = await http.get(Uri.parse(_url));
+      final uri = Uri.parse(
+        _url,
+      ).replace(queryParameters: {'userName': userName});
+      final response = await http.get(uri);
       if (response.statusCode == 200) {
-        print("Raw response: ${response.body}"); // デバッグ用に追加
-        final Map<String, dynamic> decodedBody = jsonDecode(response.body);
-        print("Decoded response: $decodedBody"); // デバッグ用に追加
-        final List<dynamic> data = decodedBody['data'] ?? [];
-        return data.map((json) => ExpenseItem.fromJson(json)).toList();
+        final List<dynamic> decodedBody = jsonDecode(response.body);
+        return decodedBody.map((json) => ExpenseItem.fromJson(json)).toList();
       } else {
         throw Exception("Failed to load expenses");
       }

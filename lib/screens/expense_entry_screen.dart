@@ -4,7 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 class ExpenseFormSnippet extends StatefulWidget {
-  const ExpenseFormSnippet({super.key});
+  final TextEditingController userNameController;
+
+  const ExpenseFormSnippet({super.key, required this.userNameController});
 
   @override
   _ExpenseFormSnippetState createState() => _ExpenseFormSnippetState();
@@ -60,9 +62,20 @@ class _ExpenseFormSnippetState extends State<ExpenseFormSnippet> {
     final cleanPriceText = _priceController.text.replaceAll(',', '');
     final price = int.tryParse(cleanPriceText) ?? 0;
 
+    final userName = widget.userNameController.text.trim();
+    if (userName.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("名前を入力してください"),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     try {
       final payload = {
-        "userName": "ユーザー名", // 実際のユーザー名に合わせる
+        "userName": userName,
         "date": DateTime.now().toIso8601String().split('T')[0], // "YYYY-MM-DD"
         "price": price,
         "item": itemText,

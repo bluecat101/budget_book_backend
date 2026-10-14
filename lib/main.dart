@@ -1,5 +1,6 @@
 import 'package:budget_book/screens/expense_chart_screen.dart';
 import 'package:budget_book/screens/expense_entry_screen.dart';
+import 'package:budget_book/services/user_preference_service.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter/material.dart';
 
@@ -38,8 +39,27 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  // 現在選択されているタブ（'register' または 'graph'）
+  final TextEditingController _userNameController = TextEditingController();
   String _selectedTab = 'register';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSavedUser();
+  }
+
+  // アプリ起動時に保存されていた直近の名前を読み込む
+  Future<void> _loadSavedUser() async {
+    final lastUser = await UserPreferenceService.getLastUser();
+    setState(() {
+      _userNameController.text = lastUser;
+    });
+  }
+
+  // 名前が変更されたら保存する
+  void _onUserChanged(String value) {
+    UserPreferenceService.saveLastUser(value);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -47,7 +67,38 @@ class _HomeScreenState extends State<HomeScreen> {
       appBar: AppBar(
         title: const Text('スマート家計簿'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        elevation: 0,
+        // ★ ヘッダーの右上にユーザー入力欄を配置
+        actions: [
+          SizedBox(
+            width: 120, // 少しコンパクトに調整
+            child: TextField(
+              controller: _userNameController,
+              onChanged: _onUserChanged,
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+              decoration: InputDecoration(
+                isDense: true,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 8,
+                  vertical: 10,
+                ),
+                // labelTextの代わりに hintText を使うことで、枠が変形してはみ出るのを防ぎます
+                hintText: '名前を入力',
+                hintStyle: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+                filled: true,
+                fillColor: Colors.white,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide.none,
+                ),
+                prefixIcon: const Icon(Icons.person, size: 15),
+                prefixIconConstraints: const BoxConstraints(
+                  minWidth: 24,
+                  minHeight: 24,
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
       body: GestureDetector(
         onTap: () => FocusScope.of(context).unfocus(),
@@ -92,9 +143,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
                 const SizedBox(height: 12),
-                const ExpenseFormSnippet(),
+                ExpenseFormSnippet(userNameController: _userNameController),
               ] else ...[
-                const ExpenseChartScreen(),
+                ExpenseChartScreen(userNameController: _userNameController),
               ],
             ],
           ),

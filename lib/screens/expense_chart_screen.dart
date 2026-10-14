@@ -5,7 +5,9 @@ import 'package:budget_book/models/expense_model.dart'; // ご自身のモデル
 import 'package:budget_book/services/expense_service.dart'; // または api_service.dart
 
 class ExpenseChartScreen extends StatefulWidget {
-  const ExpenseChartScreen({super.key});
+  final TextEditingController userNameController;
+
+  const ExpenseChartScreen({super.key, required this.userNameController});
 
   @override
   State<ExpenseChartScreen> createState() => _ExpenseChartScreenState();
@@ -27,7 +29,9 @@ class _ExpenseChartScreenState extends State<ExpenseChartScreen> {
     setState(() => _isLoading = true);
     try {
       // サーバーやローカルから全データを取得するサービス
-      final items = await ExpenseService.fetchExpenses();
+      final items = await ExpenseService.fetchExpenses(
+        widget.userNameController.text,
+      );
 
       // 存在する月を抽出して降順ソート
       final months =
