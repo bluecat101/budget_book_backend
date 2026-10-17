@@ -32,6 +32,8 @@ class _ExpenseEntryScreenState extends State<ExpenseEntryScreen> {
 
   bool _isSubmitting = false;
 
+  final int MaxRecentItems = 5; // 最近使った項目の最大数
+
   @override
   void initState() {
     super.initState();
@@ -57,7 +59,8 @@ class _ExpenseEntryScreenState extends State<ExpenseEntryScreen> {
     _displayItems.removeWhere((item) => savedItems.contains(item));
     _displayItems.insertAll(0, savedItems);
 
-    if (_displayItems.length > 5) {
+    // 個数制限
+    while (_displayItems.length > MaxRecentItems) {
       _displayItems.removeLast();
     }
 
@@ -71,27 +74,25 @@ class _ExpenseEntryScreenState extends State<ExpenseEntryScreen> {
     setState(() {
       _displayItems.remove(newItem);
       _displayItems.insert(0, newItem);
-      if (_displayItems.length > 5) {
+
+      // 個数制限
+      while (_displayItems.length > MaxRecentItems) {
         _displayItems.removeLast();
       }
     });
-    // 保存する
+
     UserPreferenceService.saveRecentItems(_displayItems);
   }
 
   // --- 登録ボタンが押されたときに実行されるメイン処理 ---
   Future<void> _handleSubmit() async {
-    debugPrint('[SUBMIT] 開始');
-
     if (_isSubmitting) {
-      debugPrint('[SUBMIT] 二重送信を防止');
       return;
     }
 
     FocusScope.of(context).unfocus();
 
     if (!_formKey.currentState!.validate()) {
-      debugPrint('[SUBMIT] バリデーション失敗');
       return;
     }
 
@@ -101,22 +102,17 @@ class _ExpenseEntryScreenState extends State<ExpenseEntryScreen> {
     final userName = widget.userNameController.text.trim();
 
     if (userName.isEmpty) {
-      debugPrint('[SUBMIT] 名前が空');
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('名前を入力してください')));
       return;
     }
 
-    debugPrint('[SUBMIT] 登録中に切り替える');
-
     setState(() {
       _isSubmitting = true;
     });
 
     await Future<void>.delayed(const Duration(milliseconds: 300));
-
-    debugPrint('[SUBMIT] API呼び出し直前');
 
     try {
       final payload = {
@@ -127,8 +123,6 @@ class _ExpenseEntryScreenState extends State<ExpenseEntryScreen> {
       };
 
       await ExpenseService.postExpense(payload);
-
-      debugPrint('[SUBMIT] API成功 mounted=$mounted');
 
       if (!mounted) return;
 
@@ -142,8 +136,6 @@ class _ExpenseEntryScreenState extends State<ExpenseEntryScreen> {
         _priceController.clear();
       }
 
-      debugPrint('[SUBMIT] SnackBar表示直前');
-
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
         ..showSnackBar(
@@ -154,10 +146,7 @@ class _ExpenseEntryScreenState extends State<ExpenseEntryScreen> {
             behavior: SnackBarBehavior.floating,
           ),
         );
-
-      debugPrint('[SUBMIT] SnackBar表示処理完了');
     } catch (e, stackTrace) {
-      debugPrint('[SUBMIT] エラー: $e');
       debugPrintStack(stackTrace: stackTrace);
 
       if (!mounted) return;
@@ -166,8 +155,6 @@ class _ExpenseEntryScreenState extends State<ExpenseEntryScreen> {
         context,
       ).showSnackBar(SnackBar(content: Text('エラー: $e')));
     } finally {
-      debugPrint('[SUBMIT] finally mounted=$mounted');
-
       if (mounted) {
         setState(() {
           _isSubmitting = false;
