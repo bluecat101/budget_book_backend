@@ -2,10 +2,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class UserPreferenceService {
   static const String _keyLastUser = 'last_entered_user';
-  // ★ 追加: 用途履歴用のキー
   static const String _keyRecentItems = 'recent_expense_items';
-
-  // 直近のユーザー名保存
+  static const String _keyIntroductionSeen = 'introduction_seen';
+  // ==========================
+  // 直近のユーザー名を保存するためのメソッド
+  // ==========================
   static Future<void> saveLastUser(String name) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_keyLastUser, name);
@@ -17,9 +18,9 @@ class UserPreferenceService {
     return prefs.getString(_keyLastUser) ?? '';
   }
 
-  // === ★ここから用途履歴用の追加メソッド===
-
-  // 直近の用途リストを保存
+  // ==========================
+  // 直近の用途リストの保存と取得
+  // ==========================
   static Future<void> saveRecentItems(List<String> items) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setStringList(_keyRecentItems, items);
@@ -29,5 +30,21 @@ class UserPreferenceService {
   static Future<List<String>> getRecentItems() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getStringList(_keyRecentItems) ?? [];
+  }
+
+  // ==========================
+  // 初回起動時のチュートリアル表示済みフラグの保存と取得
+  // ==========================
+
+  // Introduction を表示したことがあるか確認
+  static Future<bool> hasSeenIntroduction() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_keyIntroductionSeen) ?? false;
+  }
+
+  // Introduction を表示済みにする
+  static Future<void> setIntroductionSeen() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_keyIntroductionSeen, true);
   }
 }

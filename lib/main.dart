@@ -1,6 +1,7 @@
 import 'package:budget_book/screens/expense_chart_screen.dart';
 import 'package:budget_book/screens/expense_entry_screen.dart';
 import 'package:budget_book/services/user_preference_service.dart';
+import 'package:budget_book/widgets/introduction_dialog.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -54,7 +55,25 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    _loadSavedUser();
+    _initializeApp();
+  }
+
+  // アプリ起動時の初期化
+  Future<void> _initializeApp() async {
+    await _loadSavedUser();
+
+    // 紹介画面を表示済みか確認
+    final hasSeenIntroduction =
+        await UserPreferenceService.hasSeenIntroduction();
+
+    if (!hasSeenIntroduction && mounted) {
+      // 画面の初回描画後に紹介画面を表示
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _showIntroductionDialog();
+        }
+      });
+    }
   }
 
   // アプリ起動時に保存されていた直近の名前を読み込む
@@ -176,5 +195,15 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _showIntroductionDialog() async {
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const IntroductionDialog(),
+    );
+
+    await UserPreferenceService.setIntroductionSeen();
   }
 }
