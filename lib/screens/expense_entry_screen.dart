@@ -43,11 +43,16 @@ class _ExpenseEntryScreenState extends State<ExpenseEntryScreen> {
   // 最近使った項目を読み込む
   void _loadRecentItems() async {
     final savedItems = await UserPreferenceService.getRecentItems();
+
+    if (!mounted) return;
+
     _displayItems.removeWhere((item) => savedItems.contains(item));
     _displayItems.insertAll(0, savedItems);
+
     if (_displayItems.length > 5) {
       _displayItems.removeLast();
     }
+
     setState(() {});
   }
 
@@ -125,96 +130,122 @@ class _ExpenseEntryScreenState extends State<ExpenseEntryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // ② Formウィジェットで全体をラップして _formKey を渡す
     return Form(
       key: _formKey,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // --- 金額入力フィールド ---
-          const Text(
-            '金額',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
-              color: Colors.black54,
-            ),
-          ),
-          const SizedBox(height: 6),
-          TextFormField(
-            controller: _priceController,
-            keyboardType: TextInputType.number,
-            inputFormatters: [
-              FilteringTextInputFormatter.digitsOnly,
-              ThousandsSeparatorInputFormatter(),
-            ],
-            decoration: const InputDecoration(
-              labelText: '金額',
-              suffixText: '円',
-              border: OutlineInputBorder(),
-            ),
-            validator: (value) {
-              if (value == null || value.isEmpty) {
-                return '金額を入力してください';
-              }
-              return null;
-            },
-          ),
+          // 金額フィールド
+          _buildPriceField(),
           const SizedBox(height: 20),
-
-          // --- 用途入力フィールド ---
-          const Text(
-            '用途・カテゴリ',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
-              color: Colors.black54,
-            ),
-          ),
-          const SizedBox(height: 6),
-          TextFormField(
-            controller: _itemController,
-            decoration: const InputDecoration(
-              labelText: '用途',
-              border: OutlineInputBorder(),
-            ),
-            validator: (value) {
-              if (value == null || value.trim().isEmpty) {
-                return '用途を入力または選択してください';
-              }
-              return null;
-            },
-          ),
+          // 用途フィールド
+          _buildItemField(),
           const SizedBox(height: 8),
-
-          // --- ローカルで管理されている最大5つのボタン群 ---
-          Wrap(
-            spacing: 8.0,
-            runSpacing: 4.0,
-            children: _displayItems.map((item) {
-              return ActionChip(
-                label: Text(item),
-                backgroundColor: Colors.grey.shade100,
-                onPressed: () {
-                  _itemController.text = item;
-                  _itemController.selection = TextSelection.fromPosition(
-                    TextPosition(offset: _itemController.text.length),
-                  );
-                },
-              );
-            }).toList(),
-          ),
+          // 最近使った用途表示
+          _buildRecentItemChips(),
           const SizedBox(height: 20),
-
-          // --- 登録ボタン ---
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: _handleSubmit,
-              child: const Text('登録する'),
-            ),
-          ),
+          // 登録ボタン
+          _buildSubmitButton(),
         ],
+      ),
+    );
+  }
+
+  // 金額入力フィールドの構築
+  Widget _buildPriceField() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          '金額',
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.bold,
+            color: Colors.black54,
+          ),
+        ),
+        const SizedBox(height: 6),
+        TextFormField(
+          controller: _priceController,
+          keyboardType: TextInputType.number,
+          inputFormatters: [
+            FilteringTextInputFormatter.digitsOnly,
+            ThousandsSeparatorInputFormatter(),
+          ],
+          decoration: const InputDecoration(
+            labelText: '金額',
+            suffixText: '円',
+            border: OutlineInputBorder(),
+          ),
+          validator: (value) {
+            if (value == null || value.isEmpty) {
+              return '金額を入力してください';
+            }
+            return null;
+          },
+        ),
+      ],
+    );
+  }
+
+  // 用途入力フィールドの構築
+  Widget _buildItemField() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          '用途・カテゴリ',
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.bold,
+            color: Colors.black54,
+          ),
+        ),
+        const SizedBox(height: 6),
+        TextFormField(
+          controller: _itemController,
+          decoration: const InputDecoration(
+            labelText: '用途',
+            border: OutlineInputBorder(),
+          ),
+          validator: (value) {
+            if (value == null || value.trim().isEmpty) {
+              return '用途を入力または選択してください';
+            }
+            return null;
+          },
+        ),
+      ],
+    );
+  }
+
+  // 最近使った用途の構築
+  Widget _buildRecentItemChips() {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 4,
+      children: _displayItems.map((item) {
+        return ActionChip(
+          label: Text(item),
+          backgroundColor: Colors.grey.shade100,
+          onPressed: () {
+            _itemController.text = item;
+            _itemController.selection = TextSelection.fromPosition(
+              TextPosition(offset: _itemController.text.length),
+            );
+          },
+        );
+      }).toList(),
+    );
+  }
+
+  // 登録ボタンの構築
+  Widget _buildSubmitButton() {
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton(
+        onPressed: _handleSubmit,
+        child: const Text('登録する'),
       ),
     );
   }
