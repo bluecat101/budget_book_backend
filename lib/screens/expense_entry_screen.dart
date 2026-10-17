@@ -14,7 +14,7 @@ class ExpenseEntryScreen extends StatefulWidget {
 }
 
 class _ExpenseEntryScreenState extends State<ExpenseEntryScreen> {
-  // ① フォーム全体を管理するキーを定義
+  // フォーム全体を管理するキーを定義
   final _formKey = GlobalKey<FormState>();
 
   final TextEditingController _priceController = TextEditingController();
@@ -25,6 +25,12 @@ class _ExpenseEntryScreenState extends State<ExpenseEntryScreen> {
 
   // 常に表示する5つのボタン用リスト
   late List<String> _displayItems;
+
+  // フォーカス管理用の変数
+  final FocusNode _priceFocusNode = FocusNode();
+  final FocusNode _itemFocusNode = FocusNode();
+
+  bool _isSubmitting = false;
 
   @override
   void initState() {
@@ -37,6 +43,8 @@ class _ExpenseEntryScreenState extends State<ExpenseEntryScreen> {
   void dispose() {
     _priceController.dispose();
     _itemController.dispose();
+    _priceFocusNode.dispose();
+    _itemFocusNode.dispose();
     super.dispose();
   }
 
@@ -73,58 +81,98 @@ class _ExpenseEntryScreenState extends State<ExpenseEntryScreen> {
 
   // --- 登録ボタンが押されたときに実行されるメイン処理 ---
   Future<void> _handleSubmit() async {
-    // 1. バリデーションチェック
+    debugPrint('[SUBMIT] 開始');
+
+    if (_isSubmitting) {
+      debugPrint('[SUBMIT] 二重送信を防止');
+      return;
+    }
+
+    FocusScope.of(context).unfocus();
+
     if (!_formKey.currentState!.validate()) {
+      debugPrint('[SUBMIT] バリデーション失敗');
       return;
     }
 
-    final itemText = _itemController.text;
-    final cleanPriceText = _priceController.text.replaceAll(',', '');
-    final price = int.tryParse(cleanPriceText) ?? 0;
-
+    final submittedItemText = _itemController.text;
+    final submittedPriceText = _priceController.text;
+    final price = int.tryParse(submittedPriceText.replaceAll(',', '')) ?? 0;
     final userName = widget.userNameController.text.trim();
+
     if (userName.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("名前を入力してください"),
-          backgroundColor: Colors.red,
-        ),
-      );
+      debugPrint('[SUBMIT] 名前が空');
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('名前を入力してください')));
       return;
     }
+
+    debugPrint('[SUBMIT] 登録中に切り替える');
+
+    setState(() {
+      _isSubmitting = true;
+    });
+
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+
+    debugPrint('[SUBMIT] API呼び出し直前');
 
     try {
       final payload = {
-        "userName": userName,
-        "date": DateTime.now().toIso8601String().split('T')[0], // "YYYY-MM-DD"
-        "price": price,
-        "item": itemText,
+        'userName': userName,
+        'date': DateTime.now().toIso8601String().split('T')[0],
+        'price': price,
+        'item': submittedItemText,
       };
 
-      // ExpenseServiceで送信する場合
       await ExpenseService.postExpense(payload);
 
-      // 2. ローカルの履歴リストを更新
-      _addNewItemToHistory(itemText);
+      debugPrint('[SUBMIT] API成功 mounted=$mounted');
 
-      // 3. フォームをクリア
-      _itemController.clear();
-      _priceController.clear();
+      if (!mounted) return;
 
-      // 4. 成功のスナックバー表示
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("データを登録しました！"),
-          backgroundColor: Colors.green,
-        ),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("エラー: ${e.toString()}"),
-          backgroundColor: Colors.red,
-        ),
-      );
+      _addNewItemToHistory(submittedItemText);
+
+      if (_itemController.text == submittedItemText) {
+        _itemController.clear();
+      }
+
+      if (_priceController.text == submittedPriceText) {
+        _priceController.clear();
+      }
+
+      debugPrint('[SUBMIT] SnackBar表示直前');
+
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          const SnackBar(
+            content: Text('データを登録しました！'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 4),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+
+      debugPrint('[SUBMIT] SnackBar表示処理完了');
+    } catch (e, stackTrace) {
+      debugPrint('[SUBMIT] エラー: $e');
+      debugPrintStack(stackTrace: stackTrace);
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('エラー: $e')));
+    } finally {
+      debugPrint('[SUBMIT] finally mounted=$mounted');
+
+      if (mounted) {
+        setState(() {
+          _isSubmitting = false;
+        });
+      }
     }
   }
 
@@ -168,6 +216,11 @@ class _ExpenseEntryScreenState extends State<ExpenseEntryScreen> {
         TextFormField(
           controller: _priceController,
           keyboardType: TextInputType.number,
+          focusNode: _priceFocusNode,
+          textInputAction: TextInputAction.next,
+          onFieldSubmitted: (_) {
+            FocusScope.of(context).requestFocus(_itemFocusNode);
+          },
           inputFormatters: [
             FilteringTextInputFormatter.digitsOnly,
             ThousandsSeparatorInputFormatter(),
@@ -204,6 +257,8 @@ class _ExpenseEntryScreenState extends State<ExpenseEntryScreen> {
         const SizedBox(height: 6),
         TextFormField(
           controller: _itemController,
+          focusNode: _itemFocusNode,
+          textInputAction: TextInputAction.done,
           decoration: const InputDecoration(
             labelText: '用途',
             border: OutlineInputBorder(),
@@ -233,6 +288,8 @@ class _ExpenseEntryScreenState extends State<ExpenseEntryScreen> {
             _itemController.selection = TextSelection.fromPosition(
               TextPosition(offset: _itemController.text.length),
             );
+
+            FocusScope.of(context).unfocus();
           },
         );
       }).toList(),
@@ -241,12 +298,40 @@ class _ExpenseEntryScreenState extends State<ExpenseEntryScreen> {
 
   // 登録ボタンの構築
   Widget _buildSubmitButton() {
-    return SizedBox(
-      width: double.infinity,
-      child: ElevatedButton(
-        onPressed: _handleSubmit,
-        child: const Text('登録する'),
-      ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton(
+            // 登録中は二重送信を防ぐ
+            onPressed: _isSubmitting ? null : _handleSubmit,
+            child: Text(_isSubmitting ? '登録中…' : '登録する'),
+          ),
+        ),
+
+        // 登録中だけアニメーションを表示
+        if (_isSubmitting) ...[
+          const SizedBox(height: 16),
+          const Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              SizedBox(
+                width: 22,
+                height: 22,
+                child: CircularProgressIndicator(strokeWidth: 3),
+              ),
+              SizedBox(width: 12),
+              Text(
+                '登録中…',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          const LinearProgressIndicator(),
+        ],
+      ],
     );
   }
 }
