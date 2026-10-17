@@ -229,24 +229,75 @@ class _ExpenseChartScreenState extends State<ExpenseChartScreen> {
     }
 
     final filteredItems = _filteredExpenses;
-    final visibleChartMode = _isSingleMonth ? 'category' : _chartMode;
     final total = filteredItems.fold<int>(0, (sum, item) => sum + item.price);
+
     final categoryTotals = calculateCategoryTotals(filteredItems);
     final sortedCategories = categoryTotals.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
+
     final summaries = buildExpenseSummaries(
       expenses: filteredItems,
       isCategoryMode: _detailMode == 'category',
       sortByAmount: _sortField == 'amount',
       sortAscending: _sortAscending,
     );
-    // 月別表示では全期間の推移を見せ、期間指定時はその期間内の月別合計を表示する。
+
+    // 月別表示では全期間、期間指定では選択期間の月別合計を表示する。
     final monthlyTotals = calculateMonthlyTotals(
       _viewMode == 'month' ? _allExpenses : filteredItems,
     );
     final sortedMonths = monthlyTotals.keys.toList()..sort();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // 期間
+        _buildPeriodSelector(),
+        // 総支出の表示
+        _buildExpenseTotalCard(total, filteredItems.length),
+        // グラフ表示
+        _buildChartSection(
+          total: total,
+          sortedCategories: sortedCategories,
+          monthlyTotals: monthlyTotals,
+          sortedMonths: sortedMonths,
+        ),
+        // 詳細データ一覧表示
+        _buildSummarySection(summaries),
+      ],
+    );
+  }
+
+  // 2つの日付が同じ日かどうかを判定する。
+  bool _isSameDay(DateTime a, DateTime b) {
+    return a.year == b.year && a.month == b.month && a.day == b.day;
+  }
+
+  // 期間指定のプリセット選択かどうかを判定する。
+  bool _isPresetRange(String preset) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    late DateTime start;
+    late DateTime end;
+    if (preset == 'thisMonth') {
+      start = DateTime(now.year, now.month, 1);
+      end = today;
+    } else if (preset == 'lastMonth') {
+      start = DateTime(now.year, now.month - 1, 1);
+      end = DateTime(now.year, now.month, 0);
+    } else {
+      start = DateTime(now.year, now.month - 2, 1);
+      end = today;
+    }
+    return _isSameDay(_startDate, start) && _isSameDay(_endDate, end);
+  }
+
+  // 期間セレクタの構築
+  Widget _buildPeriodSelector() {
     final rangeLabel =
-        '${DateFormat('yyyy/MM/dd').format(_startDate)} 〜 ${DateFormat('yyyy/MM/dd').format(_endDate)}';
+        '${DateFormat('yyyy/MM/dd').format(_startDate)}'
+        ' 〜 '
+        '${DateFormat('yyyy/MM/dd').format(_endDate)}';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -325,41 +376,55 @@ class _ExpenseChartScreenState extends State<ExpenseChartScreen> {
             overflow: TextOverflow.ellipsis,
           ),
         ),
-        const SizedBox(height: 16),
-        Card(
-          elevation: 0,
-          color: Colors.blue.shade50,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: SizedBox(
-              width: double.infinity,
-              child: Column(
-                children: [
-                  Text(
-                    _viewMode == 'month' ? '$_selectedMonth の総支出' : '選択期間の総支出',
-                    style: TextStyle(fontSize: 14, color: Colors.grey.shade700),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    '¥${_yenFormat.format(total)}',
-                    style: TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.blue.shade900,
-                    ),
-                  ),
-                  Text(
-                    '${filteredItems.length} 件',
-                    style: TextStyle(color: Colors.grey.shade700),
-                  ),
-                ],
+      ],
+    );
+  }
+
+  // 総支出カードの構築
+  Widget _buildExpenseTotalCard(int total, int count) {
+    return Card(
+      elevation: 0,
+      color: Colors.blue.shade50,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: SizedBox(
+          width: double.infinity,
+          child: Column(
+            children: [
+              Text(
+                _viewMode == 'month' ? '$_selectedMonth の総支出' : '選択期間の総支出',
+                style: TextStyle(fontSize: 14, color: Colors.grey.shade700),
               ),
-            ),
+              const SizedBox(height: 8),
+              Text(
+                '¥${_yenFormat.format(total)}',
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.blue.shade900,
+                ),
+              ),
+              Text('$count 件', style: TextStyle(color: Colors.grey.shade700)),
+            ],
           ),
         ),
+      ),
+    );
+  }
+
+  // グラフ表示セクションの構築
+  Widget _buildChartSection({
+    required int total,
+    required List<MapEntry<String, int>> sortedCategories,
+    required Map<String, int> monthlyTotals,
+    required List<String> sortedMonths,
+  }) {
+    final visibleChartMode = _isSingleMonth ? 'category' : _chartMode;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
         const SizedBox(height: 28),
         const Text(
           'グラフ表示',
@@ -370,7 +435,9 @@ class _ExpenseChartScreenState extends State<ExpenseChartScreen> {
           children: [
             Expanded(
               child: OutlinedButton.icon(
-                onPressed: () => setState(() => _chartMode = 'category'),
+                onPressed: () {
+                  setState(() => _chartMode = 'category');
+                },
                 icon: const Icon(Icons.pie_chart_outline),
                 label: const Text('カテゴリ別割合'),
                 style: OutlinedButton.styleFrom(
@@ -397,7 +464,9 @@ class _ExpenseChartScreenState extends State<ExpenseChartScreen> {
               child: OutlinedButton.icon(
                 onPressed: _isSingleMonth
                     ? null
-                    : () => setState(() => _chartMode = 'monthly'),
+                    : () {
+                        setState(() => _chartMode = 'monthly');
+                      },
                 icon: const Icon(Icons.bar_chart),
                 label: const Text('月ごとの支出額'),
                 style: OutlinedButton.styleFrom(
@@ -407,16 +476,16 @@ class _ExpenseChartScreenState extends State<ExpenseChartScreen> {
                       : null,
                   foregroundColor: _isSingleMonth
                       ? Colors.grey.shade400
-                      : (visibleChartMode == 'monthly'
-                            ? Colors.blue.shade800
-                            : null),
+                      : visibleChartMode == 'monthly'
+                      ? Colors.blue.shade800
+                      : null,
                   disabledForegroundColor: Colors.grey.shade400,
                   side: BorderSide(
                     color: _isSingleMonth
                         ? Colors.grey.shade300
-                        : (visibleChartMode == 'monthly'
-                              ? Colors.blue.shade400
-                              : Colors.grey.shade400),
+                        : visibleChartMode == 'monthly'
+                        ? Colors.blue.shade400
+                        : Colors.grey.shade400,
                   ),
                   padding: const EdgeInsets.symmetric(
                     vertical: 12,
@@ -436,19 +505,27 @@ class _ExpenseChartScreenState extends State<ExpenseChartScreen> {
             ),
           ),
         const SizedBox(height: 12),
-        if (visibleChartMode == 'category') ...[
+        if (visibleChartMode == 'category')
           CategoryPieChart(
             sortedCategories: sortedCategories,
             total: total,
             yenFormat: _yenFormat,
-          ),
-        ] else ...[
+          )
+        else
           MonthlyBarChart(
             monthlyTotals: monthlyTotals,
             sortedMonths: sortedMonths,
           ),
-        ],
         const SizedBox(height: 28),
+      ],
+    );
+  }
+
+  // 詳細データ一覧セクションの構築
+  Widget _buildSummarySection(List<ExpenseSummary> summaries) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
         SegmentedButton<String>(
           segments: const [
             ButtonSegment(
@@ -463,8 +540,9 @@ class _ExpenseChartScreenState extends State<ExpenseChartScreen> {
             ),
           ],
           selected: {_detailMode},
-          onSelectionChanged: (selection) =>
-              setState(() => _detailMode = selection.first),
+          onSelectionChanged: (selection) {
+            setState(() => _detailMode = selection.first);
+          },
         ),
         const SizedBox(height: 8),
         Wrap(
@@ -519,27 +597,5 @@ class _ExpenseChartScreenState extends State<ExpenseChartScreen> {
         ),
       ],
     );
-  }
-
-  bool _isPresetRange(String preset) {
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    late DateTime start;
-    late DateTime end;
-    if (preset == 'thisMonth') {
-      start = DateTime(now.year, now.month, 1);
-      end = today;
-    } else if (preset == 'lastMonth') {
-      start = DateTime(now.year, now.month - 1, 1);
-      end = DateTime(now.year, now.month, 0);
-    } else {
-      start = DateTime(now.year, now.month - 2, 1);
-      end = today;
-    }
-    return _isSameDay(_startDate, start) && _isSameDay(_endDate, end);
-  }
-
-  bool _isSameDay(DateTime a, DateTime b) {
-    return a.year == b.year && a.month == b.month && a.day == b.day;
   }
 }
