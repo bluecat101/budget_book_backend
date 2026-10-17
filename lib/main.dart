@@ -143,7 +143,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
                 const SizedBox(height: 12),
-                ExpenseFormSnippet(userNameController: _userNameController),
+                ExpenseEntryScreen(userNameController: _userNameController),
               ] else ...[
                 ExpenseChartScreen(userNameController: _userNameController),
               ],

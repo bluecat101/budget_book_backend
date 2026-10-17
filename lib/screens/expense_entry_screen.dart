@@ -4,16 +4,16 @@ import 'package:budget_book/utils/thousands_separator_input_formatter.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-class ExpenseFormSnippet extends StatefulWidget {
+class ExpenseEntryScreen extends StatefulWidget {
   final TextEditingController userNameController;
 
-  const ExpenseFormSnippet({super.key, required this.userNameController});
+  const ExpenseEntryScreen({super.key, required this.userNameController});
 
   @override
-  _ExpenseFormSnippetState createState() => _ExpenseFormSnippetState();
+  _ExpenseEntryScreenState createState() => _ExpenseEntryScreenState();
 }
 
-class _ExpenseFormSnippetState extends State<ExpenseFormSnippet> {
+class _ExpenseEntryScreenState extends State<ExpenseEntryScreen> {
   // ① フォーム全体を管理するキーを定義
   final _formKey = GlobalKey<FormState>();
 
