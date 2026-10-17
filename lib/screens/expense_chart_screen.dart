@@ -588,6 +588,10 @@ class _ExpenseChartScreenState extends State<ExpenseChartScreen> {
       start = DateTime(now.year, now.month - 2, 1);
       end = today;
     }
-    return _startDate == start && _endDate == end;
+    return _isSameDay(_startDate, start) && _isSameDay(_endDate, end);
+  }
+
+  bool _isSameDay(DateTime a, DateTime b) {
+    return a.year == b.year && a.month == b.month && a.day == b.day;
   }
 }
