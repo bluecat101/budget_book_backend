@@ -1,4 +1,5 @@
 import 'package:budget_book/services/api_service.dart';
+import 'package:budget_book/services/user_preference_service.dart';
 import 'package:budget_book/utils/thousands_separator_input_formatter.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -29,6 +30,7 @@ class _ExpenseFormSnippetState extends State<ExpenseFormSnippet> {
   void initState() {
     super.initState();
     _displayItems = List.from(_defaultItems);
+    _loadRecentItems();
   }
 
   @override
@@ -36,6 +38,17 @@ class _ExpenseFormSnippetState extends State<ExpenseFormSnippet> {
     _priceController.dispose();
     _itemController.dispose();
     super.dispose();
+  }
+
+  // 最近使った項目を読み込む
+  void _loadRecentItems() async {
+    final savedItems = await UserPreferenceService.getRecentItems();
+    _displayItems.removeWhere((item) => savedItems.contains(item));
+    _displayItems.insertAll(0, savedItems);
+    if (_displayItems.length > 5) {
+      _displayItems.removeLast();
+    }
+    setState(() {});
   }
 
   // ユーザーが新しい項目を入力して登録したときに呼ぶメソッド
@@ -49,6 +62,8 @@ class _ExpenseFormSnippetState extends State<ExpenseFormSnippet> {
         _displayItems.removeLast();
       }
     });
+    // 保存する
+    UserPreferenceService.saveRecentItems(_displayItems);
   }
 
   // --- 登録ボタンが押されたときに実行されるメイン処理 ---
