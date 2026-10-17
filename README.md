@@ -1,16 +1,184 @@
-# budget_book
+# スマート家計簿（Budget Book）
 
-A new Flutter project.
+Flutter で作成した、支出を登録・確認できる家計簿アプリです。ユーザー名ごとに支出データを取得し、月別の支出合計やカテゴリ別の割合を確認できます。
 
-## Getting Started
+## 主な機能
 
-This project is a starting point for a Flutter application.
+- **支出の登録**：金額と用途・カテゴリを入力して登録
+- **金額の自動整形**：入力中の金額を 3 桁ごとのカンマ区切りで表示
+- **用途のクイック入力**：標準カテゴリや最近使用した用途をボタンから選択
+- **ユーザー名の保存**：直近に入力したユーザー名を端末に保存
+- **月別の支出確認**：データがある月を選択し、その月の支出を表示
+- **カテゴリ別の可視化**：月ごとの総支出とカテゴリ別割合を円グラフで表示
+- **データ更新**：グラフ画面から支出データを再取得
 
-A few resources to get you started if this is your first Flutter project:
+## 使用技術
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+- [Flutter](https://flutter.dev/)
+- Dart
+- `http` — HTTP 通信
+- `flutter_dotenv` — `.env` から API URL を読み込み
+- `shared_preferences` — ユーザー名と最近使用した用途の保存
+- `intl` — 日付・金額のフォーマット
+- `fl_chart` — 円グラフ表示
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## 画面・ファイル構成
+
+```text
+lib/
+├── main.dart
+├── models/
+│   └── expense_model.dart
+├── screens/
+│   ├── expense_entry_screen.dart
+│   └── expense_chart_screen.dart
+├── services/
+│   ├── api_service.dart
+│   ├── expense_service.dart
+│   └── user_preference_service.dart
+└── utils/
+    └── thousands_separator_input_formatter.dart
+```
+
+> 上記は、提供された Dart ファイルの import パスに基づく構成例です。実際の配置と異なる場合は、プロジェクトに合わせて調整してください。
+
+## 動作の概要
+
+### 1. 支出を登録する
+
+1. ヘッダーの入力欄にユーザー名を入力します。
+2. 金額と用途・カテゴリを入力します。
+3. 必要に応じて、表示されている用途ボタンを選んで入力を補助します。
+4. **「登録する」**を押すと、設定された API に支出データを送信します。
+
+登録データには、ユーザー名、登録日（`YYYY-MM-DD`）、金額、用途が含まれます。登録に成功するとフォームがクリアされ、成功メッセージが表示されます。
+
+### 2. 支出を確認する
+
+「グラフを見る」タブでは、API から取得したデータを月ごとに絞り込んで表示します。
+
+- 月別の総支出
+- 用途・カテゴリ別の支出割合（円グラフ）
+- 日付、用途、金額、ユーザー名の一覧
+
+表示月の選択や更新ボタンで、確認するデータを切り替え・再取得できます。
+
+## セットアップ
+
+### 必要なもの
+
+- Flutter SDK
+- Dart SDK（通常は Flutter SDK に付属）
+- 使用する API のエンドポイント
+
+Flutter のインストール方法は [Flutter 公式ドキュメント](https://docs.flutter.dev/get-started/install)を参照してください。
+
+### 1. 依存関係をインストールする
+
+プロジェクトのルートディレクトリで実行します。
+
+```bash
+flutter pub get
+```
+
+使用するパッケージが `pubspec.yaml` に定義されていることを確認してください。
+
+```yaml
+dependencies:
+  flutter:
+    sdk: flutter
+  http: ^1.0.0
+  flutter_dotenv: ^5.0.0
+  shared_preferences: ^2.0.0
+  intl: ^0.18.0
+  fl_chart: ^0.0.0
+```
+
+> バージョンは記載例です。既存の `pubspec.yaml` や各パッケージの互換性に合わせて指定してください。実際に使用する `fl_chart` などのバージョンは、プロジェクトの依存関係を優先してください。
+
+### 2. `.env` ファイルを作成する
+
+アプリ起動時に `.env` を読み込むため、プロジェクトのルートに `.env` ファイルを作成し、API の URL を設定します。
+
+```dotenv
+API_URL=https://your-api-endpoint.example
+```
+
+`https://your-api-endpoint.example` は例です。実際に使用する API エンドポイントへ置き換えてください。`.env` を利用する設定が `pubspec.yaml` の `assets` に必要な構成では、`.env` を assets に登録してください。
+
+```yaml
+flutter:
+  assets:
+    - .env
+```
+
+`.env` に秘密情報を記載する場合は、リポジトリへコミットしないでください。なお、Flutter アプリに含めた値は完全な秘匿にはならないため、API 側でも適切なアクセス制御を行ってください。
+
+### 3. アプリを起動する
+
+```bash
+flutter run
+```
+
+## API の仕様
+
+このアプリは、`.env` の `API_URL` を登録・取得の両方に使用します。
+
+### 支出の登録
+
+- **HTTP メソッド**：`POST`
+- **ヘッダー**：`Content-Type: application/json`
+- **リクエスト本文の例**：
+
+```json
+{
+  "userName": "サンプルユーザー",
+  "date": "2026-10-17",
+  "price": 1200,
+  "item": "食費"
+}
+```
+
+登録処理は、HTTP ステータスコードが `200` であることに加え、レスポンス JSON の `status` が `"success"` であることを期待します。失敗時は例外として扱い、画面にエラーメッセージを表示します。
+
+### 支出の取得
+
+- **HTTP メソッド**：`GET`
+- **クエリパラメータ**：`userName`
+- **レスポンス形式**：支出オブジェクトの JSON 配列
+
+```json
+[
+  {
+    "date": "2026-10-17",
+    "user": "サンプルユーザー",
+    "price": 1200,
+    "item": "食費"
+  }
+]
+```
+
+取得した JSON は `ExpenseItem` に変換されます。取得処理でエラーが発生した場合、現在の実装ではログを出力して空のリストを返します。
+
+> API の実装方式や実際の URL、認証方法は提供された Dart ファイルだけでは確定できません。接続先 API の仕様に合わせて設定してください。
+
+## ローカル保存データ
+
+`shared_preferences` を使い、端末に次の情報を保存します。
+
+- 最後に入力したユーザー名
+- 最近使用した用途のリスト（最大 5 件を画面に表示）
+
+これらは支出データそのものとは別に、端末側の入力補助情報として利用します。
+
+## 補足・注意点
+
+- グラフは、取得できた支出データに含まれる月を候補として表示します。
+- 円グラフの集計は `item` ごとに金額を合算しています。
+- 取得処理が失敗した場合、空のリストとして扱われるため、通信エラーと「データがない」状態が画面上で区別されないことがあります。
+- `main.dart` では `.env` の読み込みを起動時に行っています。`.env` が存在しない場合や `API_URL` が未設定の場合は、通信に失敗する可能性があります。
+
+## ライセンス
+
+ライセンスは、このリポジトリの方針に合わせて設定してください。
+
