@@ -1,4 +1,4 @@
-import 'package:budget_book/services/api_service.dart';
+import 'package:budget_book/services/expense_service.dart';
 import 'package:budget_book/services/user_preference_service.dart';
 import 'package:budget_book/utils/thousands_separator_input_formatter.dart';
 import 'package:flutter/material.dart';
@@ -96,8 +96,8 @@ class _ExpenseEntryScreenState extends State<ExpenseEntryScreen> {
         "item": itemText,
       };
 
-      // ApiServiceで送信する場合
-      await ApiService.postExpense(payload);
+      // ExpenseServiceで送信する場合
+      await ExpenseService.postExpense(payload);
 
       // 2. ローカルの履歴リストを更新
       _addNewItemToHistory(itemText);
