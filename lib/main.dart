@@ -68,6 +68,7 @@ class _HomeScreenState extends State<HomeScreen> {
   // 名前が変更されたら保存する
   void _onUserChanged(String value) {
     UserPreferenceService.saveLastUser(value);
+    setState(() {});
   }
 
   @override
@@ -153,6 +154,20 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 const SizedBox(height: 12),
                 ExpenseEntryScreen(userNameController: _userNameController),
+              ] else if (_userNameController.text.trim().isEmpty) ...[
+                const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(24.0),
+                    child: Text(
+                      '右上にユーザー名を入力してください。',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
               ] else ...[
                 ExpenseChartScreen(userNameController: _userNameController),
               ],
