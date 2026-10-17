@@ -1,3 +1,4 @@
+import 'package:budget_book/utils/expense_chart_helper.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:budget_book/models/expense_model.dart';
@@ -198,64 +199,6 @@ class _ExpenseChartScreenState extends State<ExpenseChartScreen> {
     }).toList();
   }
 
-  Map<String, int> _categoryTotals(List<ExpenseItem> expenses) {
-    final totals = <String, int>{};
-    for (final expense in expenses) {
-      final category = expense.category.trim().isEmpty
-          ? '未分類'
-          : expense.category;
-      totals[category] = (totals[category] ?? 0) + expense.price;
-    }
-    return totals;
-  }
-
-  List<ExpenseSummary> _buildSummaries(List<ExpenseItem> expenses) {
-    final grouped = <String, ExpenseSummary>{};
-    for (final expense in expenses) {
-      final isCategoryMode = _detailMode == 'category';
-      final rawKey = isCategoryMode ? expense.category : expense.item;
-      final key = rawKey.trim().isEmpty
-          ? (isCategoryMode ? '未分類' : '品目未設定')
-          : rawKey;
-      final current = grouped[key];
-      if (current == null) {
-        grouped[key] = ExpenseSummary(
-          name: key,
-          total: expense.price,
-          latestDate: expense.date,
-          count: 1,
-        );
-      } else {
-        grouped[key] = ExpenseSummary(
-          name: key,
-          total: current.total + expense.price,
-          latestDate: expense.date.isAfter(current.latestDate)
-              ? expense.date
-              : current.latestDate,
-          count: current.count + 1,
-        );
-      }
-    }
-
-    final summaries = grouped.values.toList();
-    summaries.sort((a, b) {
-      final comparison = _sortField == 'amount'
-          ? a.total.compareTo(b.total)
-          : a.latestDate.compareTo(b.latestDate);
-      return _sortAscending ? comparison : -comparison;
-    });
-    return summaries;
-  }
-
-  Map<String, int> _monthlyTotals(List<ExpenseItem> expenses) {
-    final totals = <String, int>{};
-    for (final expense in expenses) {
-      final month = _monthFormat.format(expense.date);
-      totals[month] = (totals[month] ?? 0) + expense.price;
-    }
-    return totals;
-  }
-
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -288,12 +231,17 @@ class _ExpenseChartScreenState extends State<ExpenseChartScreen> {
     final filteredItems = _filteredExpenses;
     final visibleChartMode = _isSingleMonth ? 'category' : _chartMode;
     final total = filteredItems.fold<int>(0, (sum, item) => sum + item.price);
-    final categoryTotals = _categoryTotals(filteredItems);
+    final categoryTotals = calculateCategoryTotals(filteredItems);
     final sortedCategories = categoryTotals.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
-    final summaries = _buildSummaries(filteredItems);
+    final summaries = buildExpenseSummaries(
+      expenses: filteredItems,
+      isCategoryMode: _detailMode == 'category',
+      sortByAmount: _sortField == 'amount',
+      sortAscending: _sortAscending,
+    );
     // 月別表示では全期間の推移を見せ、期間指定時はその期間内の月別合計を表示する。
-    final monthlyTotals = _monthlyTotals(
+    final monthlyTotals = calculateMonthlyTotals(
       _viewMode == 'month' ? _allExpenses : filteredItems,
     );
     final sortedMonths = monthlyTotals.keys.toList()..sort();
