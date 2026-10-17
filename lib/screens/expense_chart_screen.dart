@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
 import 'package:budget_book/models/expense_model.dart';
 import 'package:budget_book/services/expense_service.dart';
+import 'package:budget_book/widgets/charts/category_pie_chart.dart';
+import 'package:budget_book/widgets/charts/monthly_bar_chart.dart';
+import 'package:budget_book/widgets/expense_summary_list.dart';
 
 class ExpenseChartScreen extends StatefulWidget {
   final TextEditingController userNameController;
@@ -207,8 +209,8 @@ class _ExpenseChartScreenState extends State<ExpenseChartScreen> {
     return totals;
   }
 
-  List<_ExpenseSummary> _buildSummaries(List<ExpenseItem> expenses) {
-    final grouped = <String, _ExpenseSummary>{};
+  List<ExpenseSummary> _buildSummaries(List<ExpenseItem> expenses) {
+    final grouped = <String, ExpenseSummary>{};
     for (final expense in expenses) {
       final isCategoryMode = _detailMode == 'category';
       final rawKey = isCategoryMode ? expense.category : expense.item;
@@ -217,14 +219,14 @@ class _ExpenseChartScreenState extends State<ExpenseChartScreen> {
           : rawKey;
       final current = grouped[key];
       if (current == null) {
-        grouped[key] = _ExpenseSummary(
+        grouped[key] = ExpenseSummary(
           name: key,
           total: expense.price,
           latestDate: expense.date,
           count: 1,
         );
       } else {
-        grouped[key] = _ExpenseSummary(
+        grouped[key] = ExpenseSummary(
           name: key,
           total: current.total + expense.price,
           latestDate: expense.date.isAfter(current.latestDate)
@@ -253,9 +255,6 @@ class _ExpenseChartScreenState extends State<ExpenseChartScreen> {
     }
     return totals;
   }
-
-  Color _chartColor(int index) =>
-      Colors.primaries[index % Colors.primaries.length];
 
   @override
   Widget build(BuildContext context) {
@@ -490,150 +489,18 @@ class _ExpenseChartScreenState extends State<ExpenseChartScreen> {
           ),
         const SizedBox(height: 12),
         if (visibleChartMode == 'category') ...[
-          const Text(
-            'カテゴリ別割合',
-            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+          CategoryPieChart(
+            sortedCategories: sortedCategories,
+            total: total,
+            yenFormat: _yenFormat,
           ),
-          const SizedBox(height: 8),
-          if (sortedCategories.isEmpty)
-            const SizedBox(
-              height: 120,
-              child: Center(child: Text('この期間のデータはありません')),
-            )
-          else ...[
-            SizedBox(
-              height: 210,
-              child: PieChart(
-                PieChartData(
-                  sectionsSpace: 2,
-                  centerSpaceRadius: 42,
-                  sections: sortedCategories.asMap().entries.map((
-                    indexedEntry,
-                  ) {
-                    final index = indexedEntry.key;
-                    final entry = indexedEntry.value;
-                    return PieChartSectionData(
-                      color: _chartColor(index),
-                      value: entry.value.toDouble(),
-                      title: '',
-                      radius: 62,
-                    );
-                  }).toList(),
-                ),
-              ),
-            ),
-            const SizedBox(height: 8),
-            ...sortedCategories.asMap().entries.map((indexedEntry) {
-              final index = indexedEntry.key;
-              final entry = indexedEntry.value;
-              final percent = total == 0 ? 0.0 : entry.value / total * 100;
-              return Padding(
-                padding: const EdgeInsets.symmetric(vertical: 4),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 12,
-                      height: 12,
-                      decoration: BoxDecoration(
-                        color: _chartColor(index),
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(entry.key, overflow: TextOverflow.ellipsis),
-                    ),
-                    Text(
-                      '¥${_yenFormat.format(entry.value)}  (${percent.toStringAsFixed(1)}%)',
-                      style: const TextStyle(fontWeight: FontWeight.w600),
-                    ),
-                  ],
-                ),
-              );
-            }),
-          ],
         ] else ...[
-          const Text(
-            '月ごとの支出額',
-            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+          MonthlyBarChart(
+            monthlyTotals: monthlyTotals,
+            sortedMonths: sortedMonths,
           ),
-          const SizedBox(height: 8),
-          if (sortedMonths.isEmpty)
-            const SizedBox(
-              height: 120,
-              child: Center(child: Text('表示できるデータはありません')),
-            )
-          else
-            SizedBox(
-              height: 250,
-              child: BarChart(
-                BarChartData(
-                  alignment: BarChartAlignment.spaceAround,
-                  maxY: _niceMaxY(monthlyTotals.values),
-                  gridData: FlGridData(show: true, drawVerticalLine: false),
-                  borderData: FlBorderData(show: false),
-                  barTouchData: BarTouchData(enabled: true),
-                  titlesData: FlTitlesData(
-                    topTitles: const AxisTitles(
-                      sideTitles: SideTitles(showTitles: false),
-                    ),
-                    rightTitles: const AxisTitles(
-                      sideTitles: SideTitles(showTitles: false),
-                    ),
-                    leftTitles: AxisTitles(
-                      sideTitles: SideTitles(
-                        showTitles: true,
-                        reservedSize: 48,
-                        getTitlesWidget: (value, meta) => Text(
-                          _compactYen(value),
-                          style: const TextStyle(fontSize: 10),
-                        ),
-                      ),
-                    ),
-                    bottomTitles: AxisTitles(
-                      sideTitles: SideTitles(
-                        showTitles: true,
-                        reservedSize: 34,
-                        getTitlesWidget: (value, meta) {
-                          final index = value.toInt();
-                          if (index < 0 || index >= sortedMonths.length)
-                            return const SizedBox.shrink();
-                          if (sortedMonths.length > 7 && index.isOdd)
-                            return const SizedBox.shrink();
-                          return Padding(
-                            padding: const EdgeInsets.only(top: 8),
-                            child: Text(
-                              sortedMonths[index].substring(2),
-                              style: const TextStyle(fontSize: 10),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                  ),
-                  barGroups: sortedMonths.asMap().entries.map((entry) {
-                    return BarChartGroupData(
-                      x: entry.key,
-                      barRods: [
-                        BarChartRodData(
-                          toY: (monthlyTotals[entry.value] ?? 0).toDouble(),
-                          color: Colors.blue.shade400,
-                          width: sortedMonths.length > 10 ? 10 : 18,
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                      ],
-                    );
-                  }).toList(),
-                ),
-              ),
-            ),
         ],
         const SizedBox(height: 28),
-        const Text(
-          '詳細データ一覧',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 8),
         SegmentedButton<String>(
           segments: const [
             ButtonSegment(
@@ -697,54 +564,11 @@ class _ExpenseChartScreenState extends State<ExpenseChartScreen> {
           ],
         ),
         const SizedBox(height: 8),
-        if (summaries.isEmpty)
-          const Padding(
-            padding: EdgeInsets.all(20),
-            child: Center(child: Text('該当するデータはありません')),
-          )
-        else
-          ListView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: summaries.length,
-            itemBuilder: (context, index) {
-              final summary = summaries[index];
-              return Card(
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  side: BorderSide(color: Colors.grey.shade200),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                margin: const EdgeInsets.symmetric(vertical: 4),
-                child: ListTile(
-                  leading: CircleAvatar(
-                    backgroundColor: Colors.blue.shade100,
-                    child: Icon(
-                      _detailMode == 'category'
-                          ? Icons.category_outlined
-                          : Icons.receipt_long,
-                      color: Colors.blue.shade900,
-                      size: 20,
-                    ),
-                  ),
-                  title: Text(
-                    summary.name,
-                    style: const TextStyle(fontWeight: FontWeight.w500),
-                  ),
-                  subtitle: Text(
-                    '最新 ${DateFormat('yyyy/MM/dd').format(summary.latestDate)} ・ ${summary.count}件',
-                  ),
-                  trailing: Text(
-                    '¥${_yenFormat.format(summary.total)}',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 15,
-                    ),
-                  ),
-                ),
-              );
-            },
-          ),
+        ExpenseSummaryList(
+          summaries: summaries,
+          detailMode: _detailMode,
+          yenFormat: _yenFormat,
+        ),
       ],
     );
   }
@@ -766,33 +590,4 @@ class _ExpenseChartScreenState extends State<ExpenseChartScreen> {
     }
     return _startDate == start && _endDate == end;
   }
-
-  double _niceMaxY(Iterable<int> values) {
-    final maxValue = values.fold<int>(
-      0,
-      (max, value) => value > max ? value : max,
-    );
-    if (maxValue <= 0) return 100;
-    return (maxValue * 1.2).ceilToDouble();
-  }
-
-  String _compactYen(double value) {
-    if (value >= 1000000) return '${(value / 1000000).toStringAsFixed(1)}M';
-    if (value >= 1000) return '${(value / 1000).toStringAsFixed(0)}k';
-    return value.toInt().toString();
-  }
-}
-
-class _ExpenseSummary {
-  final String name;
-  final int total;
-  final DateTime latestDate;
-  final int count;
-
-  const _ExpenseSummary({
-    required this.name,
-    required this.total,
-    required this.latestDate,
-    required this.count,
-  });
 }
