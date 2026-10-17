@@ -225,7 +225,7 @@ class _ExpenseChartScreenState extends State<ExpenseChartScreen> {
                 leading: CircleAvatar(
                   backgroundColor: Colors.blue.shade100,
                   child: Text(
-                    item.user.isNotEmpty ? item.user[0] : '?',
+                    "", // サンプルデータを入れる
                     style: TextStyle(color: Colors.blue.shade900),
                   ),
                 ),
