@@ -20,6 +20,9 @@ class _ExpenseEntryScreenState extends State<ExpenseEntryScreen> {
   final TextEditingController _priceController = TextEditingController();
   final TextEditingController _itemController = TextEditingController();
 
+  // 選択された日付の保持（デフォルトは今日）
+  DateTime _selectedDate = DateTime.now();
+
   // デフォルトの定番アイテム
   final List<String> _defaultItems = ['食費', 'カフェ', '交通費', '日用品', 'エンタメ'];
 
@@ -84,6 +87,21 @@ class _ExpenseEntryScreenState extends State<ExpenseEntryScreen> {
     UserPreferenceService.saveRecentItems(_displayItems);
   }
 
+  // カレンダーを表示して日付を変更するメソッド
+  Future<void> _selectDate(BuildContext context) async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate,
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2030),
+    );
+    if (picked != null && picked != _selectedDate) {
+      setState(() {
+        _selectedDate = picked;
+      });
+    }
+  }
+
   // --- 登録ボタンが押されたときに実行されるメイン処理 ---
   Future<void> _handleSubmit() async {
     if (_isSubmitting) {
@@ -117,7 +135,8 @@ class _ExpenseEntryScreenState extends State<ExpenseEntryScreen> {
     try {
       final payload = {
         'userName': userName,
-        'date': DateTime.now().toIso8601String().split('T')[0],
+        // 選択された日付を YYYY-MM-DD 形式にして送信
+        'date': _selectedDate.toIso8601String().split('T')[0],
         'price': price,
         'item': submittedItemText,
       };
@@ -170,6 +189,9 @@ class _ExpenseEntryScreenState extends State<ExpenseEntryScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // 日付選択フィールド
+          _buildDateField(),
+          const SizedBox(height: 20),
           // 金額フィールド
           _buildPriceField(),
           const SizedBox(height: 20),
@@ -183,6 +205,43 @@ class _ExpenseEntryScreenState extends State<ExpenseEntryScreen> {
           _buildSubmitButton(),
         ],
       ),
+    );
+  }
+
+  // 日付選択フィールドの構築
+  Widget _buildDateField() {
+    // 見やすく「YYYY年M月D日」形式にフォーマットする文字列
+    final formattedDateText =
+        "${_selectedDate.year}年 ${_selectedDate.month}月 ${_selectedDate.day}日";
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          '日付',
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.bold,
+            color: Colors.black54,
+          ),
+        ),
+        const SizedBox(height: 6),
+        InkWell(
+          onTap: () => _selectDate(context),
+          borderRadius: BorderRadius.circular(4),
+          child: InputDecorator(
+            decoration: const InputDecoration(
+              labelText: '日付',
+              border: OutlineInputBorder(),
+              suffixIcon: Icon(Icons.calendar_today),
+            ),
+            child: Text(
+              formattedDateText,
+              style: const TextStyle(fontSize: 16, color: Colors.black87),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -291,13 +350,10 @@ class _ExpenseEntryScreenState extends State<ExpenseEntryScreen> {
         SizedBox(
           width: double.infinity,
           child: ElevatedButton(
-            // 登録中は二重送信を防ぐ
             onPressed: _isSubmitting ? null : _handleSubmit,
             child: Text(_isSubmitting ? '登録中…' : '登録する'),
           ),
         ),
-
-        // 登録中だけアニメーションを表示
         if (_isSubmitting) ...[
           const SizedBox(height: 16),
           const Row(
