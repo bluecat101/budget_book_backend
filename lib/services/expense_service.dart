@@ -57,7 +57,7 @@ class ExpenseService {
       }
 
       final responseData = jsonDecode(response.body);
-      if (responseData['status'] != 'success') {
+      if (responseData['code'] != 'success') {
         throw Exception(responseData['message'] ?? '登録に失敗しました。');
       }
     } finally {

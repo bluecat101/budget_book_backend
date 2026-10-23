@@ -170,9 +170,11 @@ class _ExpenseEntryScreenState extends State<ExpenseEntryScreen> {
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('エラー: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('エラー: ${e.toString().replaceFirst('Exception: ', '')}'),
+        ),
+      );
     } finally {
       if (mounted) {
         setState(() {
