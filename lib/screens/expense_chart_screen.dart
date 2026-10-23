@@ -76,7 +76,8 @@ class _ExpenseChartScreenState extends State<ExpenseChartScreen> {
       if (!mounted) return;
       setState(() {
         _isLoading = false;
-        _loadError = 'データを取得できませんでした。通信状況を確認して再試行してください。';
+        _loadError =
+            'データを取得できませんでした。${e.toString().replaceFirst('Exception: ', '')}';
       });
     }
   }

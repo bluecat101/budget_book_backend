@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:budget_book/models/expense_model.dart';
+import 'package:budget_book/utils/api_error_messages.dart';
 import 'package:http/http.dart' as http; // httpパッケージが必要になります
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
@@ -8,20 +9,23 @@ class ExpenseService {
 
   // 支出データの取得
   static Future<List<ExpenseItem>> fetchExpenses(String userName) async {
-    try {
-      final uri = Uri.parse(
-        _url,
-      ).replace(queryParameters: {'userName': userName});
-      final response = await http.get(uri);
-      if (response.statusCode == 200) {
-        final List<dynamic> decodedBody = jsonDecode(response.body);
-        return decodedBody.map((json) => ExpenseItem.fromJson(json)).toList();
-      } else {
-        throw Exception("Failed to load expenses");
-      }
-    } catch (e) {
-      print("Error fetching data: $e");
-      return [];
+    final uri = Uri.parse(
+      _url,
+    ).replace(queryParameters: {'userName': userName});
+    final response = await http.get(uri);
+    // HTTP通信自体のエラー
+    if (response.statusCode != 200) {
+      throw Exception('通信エラーが発生しました。');
+    }
+    final body = jsonDecode(response.body) as Map<String, dynamic>;
+    print('Response body: $body'); // デバッグ用にレスポンスの内容を出力
+    if (body['statusCode'] == 200) {
+      final List<dynamic> data = body['data'];
+      return data.map((json) => ExpenseItem.fromJson(json)).toList();
+    } else {
+      final String errorCode = body['code'];
+      final message = ApiErrorMessages.getMessage(errorCode);
+      throw Exception(message);
     }
   }
 
